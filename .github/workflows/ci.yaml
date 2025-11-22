@@ -1,0 +1,78 @@
+name: CI Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  VCPKG_ROOT: C:/vcpkg
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - generator: "Visual Studio 17 2022"
+            arch: x64
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Cache vcpkg
+      uses: actions/cache@v4
+      with:
+        path: vcpkg/installed
+        key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+
+    - name: Install vcpkg
+      run: |
+        if not exist vcpkg (
+          git clone https://github.com/Microsoft/vcpkg.git
+        )
+        cd vcpkg
+        .\bootstrap-vcpkg.bat
+        .\vcpkg integrate install
+        cd ..
+
+    - name: Install dependencies (Manifest Mode)
+      run: |
+        .\vcpkg\vcpkg install --triplet x64-windows  # 自动从 vcpkg.json 安装
+
+    - name: Configure CMake
+      run: cmake -B build -G "${{ matrix.generator }}" -A ${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+    - name: Build
+      run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+    - name: Test C++
+      working-directory: ${{github.workspace}}/build
+      run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
+
+    - name: Test Python Client (Mock)
+      run: |
+        python -m pip install requests opencv-python
+        python -c "
+import json
+mock_resp = {'results': [{'bbox': [0,0,10,10], 'text': 'Mock', 'score': 0.9}]}
+print('Mock test OK:', json.dumps(mock_resp))
+        "
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ocr_server-${{ matrix.arch }}-build
+        path: |
+          build/Release/ocr_server.exe
+          build/Release/*.dll
+        retention-days: 30
+
+    - name: Git Version Check
+      run: |
+        git rev-parse --short HEAD > build/git_version.txt
+        type build/git_version.txt

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "paddleocr-onnx-service",
+  "version-string": "1.0.0",
+  "description": "PP-OCRv5 ONNX C++ Service for Windows CPU",
+  "dependencies": [
+    {
+      "name": "onnxruntime",
+      "version>=": "1.18.0",
+      "features": ["core"]
+    },
+    {
+      "name": "opencv4",
+      "version>=": "4.8.0"
+    },
+    {
+      "name": "spdlog",
+      "version>=": "1.12.0"
+    },
+    {
+      "name": "catch2",
+      "version>=": "3.4.0"
+    },
+    {
+      "name": "nlohmann-json",
+      "version>=": "3.11.3",
+      "features": ["header-only"]
+    }
+  ],
+  "overrides": [
+    {
+      "name": "onnxruntime",
+      "version": "1.18.0"
+    }
+  ]
+}
